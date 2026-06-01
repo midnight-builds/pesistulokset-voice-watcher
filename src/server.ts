@@ -1173,7 +1173,13 @@ export function startServer(watcher: WatcherController, port: number): void {
       return;
     }
 
-    if ((url === "/v2" || url.startsWith("/v2/")) && method === "GET") {
+    if (url === "/v2" && method === "GET") {
+      res.writeHead(301, { Location: "/v2/" });
+      res.end();
+      return;
+    }
+
+    if (url.startsWith("/v2/") && method === "GET") {
       await serveV2(url, res);
       return;
     }
