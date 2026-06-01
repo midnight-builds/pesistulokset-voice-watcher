@@ -227,8 +227,11 @@ function openMatch(id: number, withListen: boolean): void {
     onLog: () => { /* feed + state cover the UI; log is for debugging */ },
     onMatchInfo: () => { /* names come via snapshot */ },
     onState: (snap) => {
+      // emitState fires every poll; re-render only when something actually
+      // changed, otherwise the full innerHTML rebuild flickers the page.
+      const changed = !snapshot || JSON.stringify(snapshot) !== JSON.stringify(snap);
       snapshot = snap;
-      if (view === "match" && openId === id) render();
+      if (changed && view === "match" && openId === id) render();
     },
     onFeed: (item) => {
       const entry: FeedEntry = { id: feedSeq++, type: item.type, text: item.text, time: nowClock() };
