@@ -16,6 +16,7 @@ const DEFAULT_API_BASE = "https://api.pesistulokset.fi/api/v1";
 const DEFAULT_API_KEY = "wRX0tTke3DZ8RLKAMntjZ81LwgNQuSN9";
 const LS_SETTINGS = "pesistulokset-v2-settings";
 const LS_FAVS = "pesistulokset-v2-favs";
+const LS_FAV_TEAMS = "pesistulokset-v2-fav-teams";
 
 interface Settings {
   apiKey: string;
@@ -65,11 +66,25 @@ function saveFavs(): void {
   localStorage.setItem(LS_FAVS, JSON.stringify(favs));
 }
 
+function loadFavTeams(): string[] {
+  try {
+    const raw = localStorage.getItem(LS_FAV_TEAMS);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter((s): s is string => typeof s === "string" && s.trim().length > 0) : [];
+  } catch { return []; }
+}
+
+function saveFavTeams(): void {
+  localStorage.setItem(LS_FAV_TEAMS, JSON.stringify(favTeams));
+}
+
 // ── App state ───────────────────────────────────────────────────────────────
 
 let settings: Settings = loadSettings();
 let pronunciations: PronunciationRule[] = loadPronunciations();
 let favs: number[] = loadFavs();
+let favTeams: string[] = loadFavTeams();
 
 let view: "list" | "match" = "list";
 let filter: "all" | "fav" = "all";
@@ -191,6 +206,18 @@ async function refreshLiveMatches(): Promise<void> {
 
 function matchById(id: number): LiveMatchSummary | undefined {
   return liveMatches.find((m) => m.id === id);
+}
+
+function isMatchFav(m: LiveMatchSummary): boolean {
+  if (favs.includes(m.id)) return true;
+  for (const t of favTeams) {
+    const tl = t.toLowerCase();
+    if (
+      m.home.shorthand.toLowerCase() === tl || m.away.shorthand.toLowerCase() === tl ||
+      m.home.name.toLowerCase().includes(tl) || m.away.name.toLowerCase().includes(tl)
+    ) return true;
+  }
+  return false;
 }
 
 function groupBySeries(list: LiveMatchSummary[]): [string, LiveMatchSummary[]][] {
@@ -356,7 +383,8 @@ function matchRow(m: LiveMatchSummary): string {
 }
 
 function listScreen(): string {
-  const shown = filter === "fav" ? liveMatches.filter((m) => favs.includes(m.id)) : liveMatches;
+  const shown = filter === "fav" ? liveMatches.filter(isMatchFav) : liveMatches;
+  const favCount = liveMatches.filter(isMatchFav).length;
   const groups = groupBySeries(shown);
 
   let body = "";
@@ -389,10 +417,10 @@ function listScreen(): string {
       </div>
       <div class="seg">
         <button class="${filter === "all" ? "on" : ""}" data-filter="all">Kaikki ottelut</button>
-        <button class="${filter === "fav" ? "on" : ""}" data-filter="fav">Suosikit${favs.length ? ` (${favs.length})` : ""}</button>
+        <button class="${filter === "fav" ? "on" : ""}" data-filter="fav">Suosikit${favCount > 0 ? ` (${favCount})` : ""}</button>
       </div>
       ${body}
-      <div class="foot-note">Pesistulokset.fi · Epävirallinen seurantasovellus</div>
+      <div class="foot-note">Sovellus käyttää pesistulokset.fi-palvelun otteludataa. Tämä projekti on itsenäinen, eikä se ole pesistulokset.fi:n tekemä, hyväksymä tai sponsoroima.</div>
     </div>
   </div></div>`;
 }
@@ -405,11 +433,11 @@ function situationHtml(s: MatchSnapshot): string {
   const lo = Math.min(s.homeRuns, s.awayRuns);
   const scorePart = lead
     ? `<b>${esc(lead)}</b> johtaa ${hi}–${lo}`
-    : `tasatilanne ${s.homeRuns}–${s.awayRuns}`;
+    : `Tasatilanne ${s.homeRuns}–${s.awayRuns}`;
   const battingName = s.battingSide === "home" ? s.homeName : s.battingSide === "away" ? s.awayName : null;
   const paloWord = s.palot === 1 ? "palo" : "paloa";
   const batPart = battingName ? ` Sisävuorossa <b>${esc(battingName)}</b>, ${s.palot} ${paloWord}.` : "";
-  return `Menossa ${esc(periodLabel(s.period))}. ${scorePart}.${batPart}`;
+  return `${scorePart}.${batPart}`;
 }
 
 function scoreboardTeam(side: "home" | "away", s: MatchSnapshot): string {
@@ -555,6 +583,10 @@ function settingsSheet(): string {
         <div class="lab"><div class="a">Kerro lyöjänvaihdot</div><div class="b">Ilmoittaa, kuka on lyöntivuorossa</div></div>
         <div class="switch${settings.announceBatterChanges ? " on" : ""}" data-toggle="announceBatterChanges"><div class="knob"></div></div>
       </div>
+      <div class="adv-field" style="border-top:1px solid var(--line)">
+        <div class="a">Suosikkijoukkueet</div>
+        <input id="set-fav-teams" type="text" spellcheck="false" placeholder="IPV, KiPa, Roihu EP, …" value="${esc(favTeams.join(', '))}" />
+      </div>
       <div class="adv-link" data-advtoggle="1">${advancedOpen ? "Piilota lisäasetukset" : "Lisäasetukset (kehittäjille)"}</div>
       ${adv}
     </div>
@@ -620,6 +652,14 @@ function bindSettings(): void {
     saveSettings();
     render();
   };
+
+  const favTeamsEl = root.querySelector<HTMLInputElement>("#set-fav-teams");
+  if (favTeamsEl) {
+    favTeamsEl.onchange = () => {
+      favTeams = favTeamsEl.value.split(",").map(s => s.trim()).filter(Boolean);
+      saveFavTeams();
+    };
+  }
 
   const advLink = root.querySelector<HTMLElement>("[data-advtoggle]");
   if (advLink) advLink.onclick = () => { advancedOpen = !advancedOpen; render(); };
