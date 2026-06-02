@@ -76,6 +76,8 @@ export class BrowserWatcher {
   private _muted = false;
   private _meta: MatchMetadata | null = null;
   private _state: WatcherState | null = null;
+  private _speechQueue: string[] = [];
+  private _speechBusy = false;
 
   constructor(
     private config: WatcherConfig,
@@ -91,7 +93,7 @@ export class BrowserWatcher {
 
   setMuted(muted: boolean): void {
     this._muted = muted;
-    if (muted && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    if (muted) this._cancelSpeech();
   }
 
   /** Speak the current situation summary now (used when the listener un-mutes). */
@@ -124,6 +126,7 @@ export class BrowserWatcher {
   stop(): void {
     this._abort?.abort();
     this._running = false;
+    this._cancelSpeech();
     this.log("Seuranta pysäytetty.");
     this.callbacks.onFinished();
   }
@@ -226,14 +229,23 @@ export class BrowserWatcher {
 
         this.processEventsLive(data.events, state, meta, lookup);
 
+        // Apply period from API before emitting (period is never reset, only advances)
+        if ((data.period ?? 0) > 0) state.currentPeriod = data.period!;
+
+        // Emit NOW so the UI snapshot shows the outs count that TTS is announcing.
+        // The batting-team correction below may reset currentOuts to 0, but the
+        // snapshot is already captured here and stays until the next emitState.
+        this.emitState(state, meta);
+
+        // If the API's current batting team differs from what events set, sync it.
+        // This happens when the 3rd out ends a turn without an explicit bat-change
+        // event arriving yet — the API field is already ahead.
         if (data.team != null && data.team !== state.currentBatTeamId) {
           state.currentBatTeamId = data.team;
           state.currentOuts = 0;
         }
-        if ((data.period ?? 0) > 0) state.currentPeriod = data.period!;
 
         saveState(matchId, state);
-        this.emitState(state, meta);
       } catch (err) {
         this.log(`Hakuvirhe: ${err instanceof Error ? err.message : err}`);
       }
@@ -395,9 +407,25 @@ export class BrowserWatcher {
   private speakRaw(text: string): void {
     if (this._muted) return;
     if (!("speechSynthesis" in window)) return;
-    const utt = new SpeechSynthesisUtterance(preventOrdinalReading(text));
+    this._speechQueue.push(preventOrdinalReading(text));
+    if (!this._speechBusy) this._drainQueue();
+  }
+
+  private _drainQueue(): void {
+    if (this._speechQueue.length === 0) { this._speechBusy = false; return; }
+    this._speechBusy = true;
+    const text = this._speechQueue.shift()!;
+    const utt = new SpeechSynthesisUtterance(text);
     utt.lang = "fi-FI";
+    utt.onend = () => this._drainQueue();
+    utt.onerror = () => this._drainQueue();
     window.speechSynthesis.speak(utt);
+  }
+
+  private _cancelSpeech(): void {
+    this._speechQueue = [];
+    this._speechBusy = false;
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   }
 
   private sleepAbortable(ms: number, signal: AbortSignal): Promise<void> {

@@ -289,7 +289,6 @@ function stopWatcher(): void {
     watcher.stop();
     watcher = null;
   }
-  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   window.clearTimeout(speakingTimer);
   speakingActive = false;
 }
