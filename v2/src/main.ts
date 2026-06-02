@@ -455,15 +455,18 @@ function scoreboardHtml(): string {
 
   const view: MatchSnapshot = s ?? {
     homeName, awayName, homeShort, awayShort, seriesName: sel?.seriesName ?? null,
-    period: 0, homeRuns: 0, awayRuns: 0, homePeriodsWon: 0, awayPeriodsWon: 0,
+    period: 0, inning: 0, batTurn: 0, homeRuns: 0, awayRuns: 0, homePeriodsWon: 0, awayPeriodsWon: 0,
     palot: 0, battingSide: null, finished: false,
   };
 
-  const paloDots = [0, 1, 2].map((i) => `<span class="palo${i < palot ? " on" : ""}"></span>`).join("");
+  const numDots = Math.max(3, palot);
+  const paloDots = Array.from({length: numDots}, (_, i) => `<span class="palo${i < palot ? " on" : ""}"></span>`).join("");
+
+  const vuoropariText = s ? `${view.inning + 1}. vuoropari, ${view.batTurn === 0 ? "aloittava" : "lopettava"}` : "";
 
   return `<div class="scoreboard">
     <div class="sb-head">
-      <span class="period">${esc(period)}</span>
+      <span class="period">${esc(period)}${vuoropariText ? ` · ${esc(vuoropariText)}` : ""}</span>
       <span class="spacer"></span>
       <span class="live-tag"><span class="dot"></span>${view.finished ? "PÄÄTTYI" : "LIVE"}</span>
     </div>

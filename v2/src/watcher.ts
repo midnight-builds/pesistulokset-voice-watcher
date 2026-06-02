@@ -7,6 +7,7 @@ import {
   isMatchEndSubEvent,
   runValueOfSubEvent,
   eventFingerprint,
+  recomputeCurrentOuts,
   formatStartupSpeech,
   formatBatTurnChangeSpeech,
   formatSituationSummary,
@@ -48,6 +49,8 @@ export interface MatchSnapshot {
   awayShort: string;
   seriesName: string | null;
   period: number;
+  inning: number;
+  batTurn: number;
   homeRuns: number;
   awayRuns: number;
   homePeriodsWon: number;
@@ -217,17 +220,27 @@ export class BrowserWatcher {
           newBatTeam !== state.currentBatTeamId &&
           data.events.length === 0
         ) {
+          const newBatTurn = (state.currentBatTurn + 1) % 2;
+          const newInning = state.currentBatTurn === 1 ? state.currentInning + 1 : state.currentInning;
           const cur = getPeriodScore(state, state.currentPeriod);
           const msg = formatBatTurnChangeSpeech(
-            meta, state.currentBatTeamId, newBatTeam, cur.home, cur.away
+            meta, state.currentBatTeamId, newBatTeam, cur.home, cur.away, newInning, newBatTurn
           );
           this.say(msg, state);
           this.emitFeed("period", msg);
           state.currentBatTeamId = newBatTeam;
+          state.currentInning = newInning;
+          state.currentBatTurn = newBatTurn;
           state.currentOuts = 0;
         }
 
         this.processEventsLive(data.events, state, meta, lookup);
+
+        // Recompute outs from all events — processEventsLive only counts NEW sub-events
+        // but the team-change reset runs for every event, leaving currentOuts at 0.
+        if (data.events.length > 0) {
+          state.currentOuts = recomputeCurrentOuts(data.events);
+        }
 
         // Apply period from API before emitting (period is never reset, only advances)
         if ((data.period ?? 0) > 0) state.currentPeriod = data.period!;
@@ -256,8 +269,10 @@ export class BrowserWatcher {
 
   private processEventsSilent(events: LiveEvent[], state: WatcherState, meta: MatchMetadata): void {
     for (const event of events) {
-      if (event.team != null && event.team !== state.currentBatTeamId) {
+      if (event.team != null && (event.team !== state.currentBatTeamId || event.inning !== state.currentInning || event.batTurn !== state.currentBatTurn)) {
         state.currentBatTeamId = event.team;
+        state.currentInning = event.inning;
+        state.currentBatTurn = event.batTurn;
         state.currentOuts = 0;
       }
       if (event.period > 0) state.currentPeriod = event.period;
@@ -288,8 +303,10 @@ export class BrowserWatcher {
     lookup: ReturnType<typeof buildPlayerLookup>
   ): void {
     for (const event of events) {
-      if (event.team != null && event.team !== state.currentBatTeamId) {
+      if (event.team != null && (event.team !== state.currentBatTeamId || event.inning !== state.currentInning || event.batTurn !== state.currentBatTurn)) {
         state.currentBatTeamId = event.team;
+        state.currentInning = event.inning;
+        state.currentBatTurn = event.batTurn;
         state.currentOuts = 0;
       }
       if (event.period > 0) state.currentPeriod = event.period;
@@ -372,6 +389,8 @@ export class BrowserWatcher {
       awayShort: meta.away.shorthand,
       seriesName: meta.series.custom_name ?? meta.series.name ?? null,
       period: state.currentPeriod,
+      inning: state.currentInning,
+      batTurn: state.currentBatTurn,
       homeRuns: cur.home,
       awayRuns: cur.away,
       homePeriodsWon: won.home,
@@ -393,6 +412,8 @@ export class BrowserWatcher {
       currentOuts: state.currentOuts,
       currentPeriod: state.currentPeriod,
       currentBatTeamId: state.currentBatTeamId,
+      currentInning: state.currentInning,
+      currentBatTurn: state.currentBatTurn,
     };
   }
 

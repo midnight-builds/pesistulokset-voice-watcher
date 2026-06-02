@@ -82,3 +82,4 @@ npm test                                     # Run tests
 - Player name resolution depends on the match metadata. If a player ID in an event doesn't match the roster, the name will show as "?".
 - The events API structure is reverse-engineered from the frontend; it may change.
 - Score summaries are only available for completed matches (from the result field).
+- Jakso- and palo-tracking is based on heuristics derived from the event stream and may still have edge cases — particularly in youth game variants where the rules differ from standard pesäpallo (e.g. more than three palot per turn).
