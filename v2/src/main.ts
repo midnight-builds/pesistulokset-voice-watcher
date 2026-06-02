@@ -427,18 +427,6 @@ function listScreen(): string {
 
 // ── Match screen ────────────────────────────────────────────────────────────
 
-function situationHtml(s: MatchSnapshot): string {
-  const lead = s.homeRuns > s.awayRuns ? s.homeName : s.awayRuns > s.homeRuns ? s.awayName : null;
-  const hi = Math.max(s.homeRuns, s.awayRuns);
-  const lo = Math.min(s.homeRuns, s.awayRuns);
-  const scorePart = lead
-    ? `<b>${esc(lead)}</b> johtaa ${hi}–${lo}`
-    : `Tasatilanne ${s.homeRuns}–${s.awayRuns}`;
-  const battingName = s.battingSide === "home" ? s.homeName : s.battingSide === "away" ? s.awayName : null;
-  const paloWord = s.palot === 1 ? "palo" : "paloa";
-  const batPart = battingName ? ` Sisävuorossa <b>${esc(battingName)}</b>, ${s.palot} ${paloWord}.` : "";
-  return `${scorePart}.${batPart}`;
-}
 
 function scoreboardTeam(side: "home" | "away", s: MatchSnapshot): string {
   const name = side === "home" ? s.homeName : s.awayName;
@@ -525,8 +513,6 @@ function matchScreen(): string {
     ? `<div class="situation" style="background:#FBE3DC;border-color:#F0C2B6;color:#8A2B16"><span class="ic">${icon("info", 17)}</span><span>${esc(matchError)}</span></div>`
     : "";
 
-  const situation = s ? `<div class="situation"><span class="ic">${icon("info", 17)}</span><span>${situationHtml(s)}</span></div>` : "";
-
   return `<div class="app"><div class="app-screen">
     <div class="safe-top"></div>
     <div class="lm-bar">
@@ -545,7 +531,6 @@ function matchScreen(): string {
         <div class="now-speaking">${nowSpeakingHtml()}</div>
       </div>
       ${errorHtml}
-      ${situation}
       <div class="feed-label">Tapahtumat</div>
       ${feedHtml()}
     </div>
