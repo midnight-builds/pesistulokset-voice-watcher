@@ -231,7 +231,7 @@ function openMatch(id: number, withListen: boolean): void {
       // changed, otherwise the full innerHTML rebuild flickers the page.
       const changed = !snapshot || JSON.stringify(snapshot) !== JSON.stringify(snap);
       snapshot = snap;
-      if (changed && view === "match" && openId === id) render();
+      if (changed && view === "match" && openId === id) deferredRender();
     },
     onFeed: (item) => {
       const entry: FeedEntry = { id: feedSeq++, type: item.type, text: item.text, time: nowClock() };
@@ -239,7 +239,7 @@ function openMatch(id: number, withListen: boolean): void {
       if (feed.length > 200) feed.shift();
       freshId = entry.id;
       if (listening) flashSpeaking();
-      if (view === "match" && openId === id) render();
+      if (view === "match" && openId === id) deferredRender();
     },
     onFinished: () => {
       if (view === "match" && openId === id) render();
@@ -298,7 +298,11 @@ function flashSpeaking(): void {
   window.clearTimeout(speakingTimer);
   speakingTimer = window.setTimeout(() => {
     speakingActive = false;
-    if (view === "match") render();
+    if (view === "match") {
+      const nowEl = root.querySelector<HTMLElement>(".now-speaking");
+      if (nowEl) nowEl.innerHTML = nowSpeakingHtml();
+      root.querySelectorAll<HTMLElement>(".fi.speaking").forEach(el => el.classList.remove("speaking"));
+    }
   }, 2600);
 }
 
@@ -318,6 +322,13 @@ function render(): void {
   if (settingsOpen) { root.insertAdjacentHTML("beforeend", settingsSheet()); bindSettings(); }
   const sc = root.querySelector<HTMLElement>(".scroll");
   if (sc && view === "match") sc.scrollTop = prevScroll;
+}
+
+let renderPending = false;
+function deferredRender(): void {
+  if (renderPending) return;
+  renderPending = true;
+  requestAnimationFrame(() => { renderPending = false; render(); });
 }
 
 // ── List screen ───────────────────────────────────────────────────────────────
