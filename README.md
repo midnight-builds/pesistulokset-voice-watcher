@@ -9,6 +9,8 @@ Web app for following Finnish pesapallo live events with spoken voice announceme
 Pesis Live Voice on selaimessa toimiva pesapallon live-seuranta, joka lukee ottelun tärkeimmät tapahtumat ääneen suomeksi. Se on tarkoitettu tilanteisiin, joissa haluat seurata peliä ilman että katsot koko ajan tulospalvelua.
 Jaksojen ja palojen seuranta on vielä vajaa ja kertoo välillä vääriä arvoja.
 
+**👉 Avaa sovellus: https://midnight-builds.github.io/pesistulokset-voice-watcher/**
+
 Käyttö:
 
 1. Avaa web-sovellus.
@@ -16,11 +18,13 @@ Käyttö:
 3. Käynnistä seuranta ja salli selaimen puhetoiminto, jos selain pyytää lupaa.
 4. Sovellus ilmoittaa ääneen esimerkiksi juoksut, palot, vuoronvaihdot ja jakson tilanteen.
 
+**Vinkki – parempi ääni:** Asetuksista voit valita käytettävän puheäänen. Oletuksena käytetään selaimen omaa puhesyntetisaattoria, mutta ottamalla käyttöön **Edistynyt ääni (Piper)** saat luonnollisemman suomenkielisen neuroverkkoäänen, joka toimii kokonaan selaimessa. Valittavana on kolme suomenkielistä ääntä (Harri ja yhteisömalli Asmo). Ääni ladataan kerran ja tallennetaan selaimeen, joten se on heti käytössä seuraavilla kerroilla. Jos lataus ei onnistu, sovellus palaa selaimen omaan ääneen.
+
 Sovellus käyttää pesistulokset.fi-palvelun otteludataa. Tämä projekti on itsenäinen, eikä se ole pesistulokset.fi:n tekemä, hyväksymä tai sponsoroima.
 
 ## Overview
 
-Pesis Live Voice turns live Finnish pesapallo match updates into spoken Finnish announcements. The public web UI runs in the browser and can speak important match events with the Web Speech API.
+Pesis Live Voice turns live Finnish pesapallo match updates into spoken Finnish announcements. The public web UI runs in the browser and can speak important match events with the Web Speech API. You can pick which voice to use in the settings, including an optional **advanced neural voice (Piper)** that produces a more natural Finnish voice entirely in the browser.
 
 The repository also contains an advanced Node.js watcher that can send announcements through Home Assistant TTS.
 
@@ -32,6 +36,7 @@ What works now:
 
 - Browser-based live match following from pesistulokset.fi data.
 - Spoken Finnish announcements for important live events.
+- Selectable speech voice, including an optional advanced neural voice (Piper) that runs fully in the browser for more natural Finnish.
 - Favorites and local settings stored in the browser.
 - Advanced Node.js watcher for Home Assistant TTS output.
 
@@ -58,6 +63,7 @@ The web app can:
 - list live matches for the current day
 - open a match by match ID or pesistulokset.fi match URL
 - announce key events with browser speech synthesis
+- let you choose the speech voice, or enable the advanced neural voice (Piper) from settings for a more natural Finnish voice
 - save favorite matches and pronunciation settings in local browser storage
 
 No server account is required. The web app stores settings locally in the browser.
@@ -155,7 +161,7 @@ npm run build
 - Score summaries are only available for completed matches (from the result field).
 - Jakso- and palo-tracking is based on heuristics derived from the event stream and may still have edge cases — particularly in youth game variants where the rules differ from standard pesäpallo (e.g. more than three palot per turn).
 - Player name resolution depends on match metadata. If a player ID in an event does not match the roster, the app falls back to a less specific announcement.
-- Browser speech quality depends on the user's device, browser, and installed Finnish voices.
+- Browser speech quality depends on the user's device, browser, and installed Finnish voices. For more consistent quality, enable the advanced neural voice (Piper) in settings; the voice model (roughly 20–60 MB) is downloaded once and cached in the browser.
 - Home Assistant usage requires a user-managed Home Assistant instance and a long-lived access token.
 
 ## Roadmap
