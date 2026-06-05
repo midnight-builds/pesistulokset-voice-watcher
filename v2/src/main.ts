@@ -413,7 +413,7 @@ function listScreen(): string {
   } else if (scope === "all" && todayMatches.length === 0) {
     body = `<div class="empty"><div class="big">${icon("ball", 34)}</div>Ei otteluita tänään.<br/>Päivitä myöhemmin uudelleen.</div>`;
   } else if (filter === "fav" && shown.length === 0) {
-    body = `<div class="empty"><div class="big">${icon("star", 34)}</div>Et seuraa vielä yhtään ottelua.<br/>Merkitse ottelu tähdellä, niin löydät sen täältä.<br/><span class="link" data-allfilter="1">Näytä kaikki ottelut</span></div>`;
+    body = `<div class="empty"><div class="big">${icon("star", 34)}</div>Et seuraa vielä yhtään ottelua.<br/>Merkitse ottelu tähdellä tai <span class="link" data-settings="1">aseta suosikkijoukkue asetuksissa</span>.<br/><span class="link" data-allfilter="1">Näytä kaikki ottelut</span></div>`;
   } else {
     for (const [label, list] of groups) {
       body += `<div class="group-label">${esc(label)}<span class="cnt">${list.length}</span></div>
@@ -672,6 +672,7 @@ function bindSettings(): void {
     favTeamsEl.onchange = () => {
       favTeams = favTeamsEl.value.split(",").map(s => s.trim()).filter(Boolean);
       saveFavTeams();
+      toast("Tallennettu");
     };
   }
 
