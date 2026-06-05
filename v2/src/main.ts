@@ -361,10 +361,7 @@ function deferredRender(): void {
 // ── List screen ───────────────────────────────────────────────────────────────
 
 function formatStartTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  const h = String(d.getUTCHours()).padStart(2, "0");
-  const m = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${h}:${m}`;
+  return new Date(dateStr).toLocaleTimeString("fi-FI", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Helsinki" });
 }
 
 function teamLine(name: string, shorthand: string): string {
@@ -416,7 +413,7 @@ function listScreen(): string {
   } else if (scope === "all" && todayMatches.length === 0) {
     body = `<div class="empty"><div class="big">${icon("ball", 34)}</div>Ei otteluita tänään.<br/>Päivitä myöhemmin uudelleen.</div>`;
   } else if (filter === "fav" && shown.length === 0) {
-    body = `<div class="empty"><div class="big">${icon("star", 34)}</div>Et seuraa vielä yhtään ottelua.<br/>Merkitse ottelu tähdellä, niin löydät sen täältä.<br/><span class="link" data-allfilter="1">Näytä kaikki ottelut</span></div>`;
+    body = `<div class="empty"><div class="big">${icon("star", 34)}</div>Et seuraa vielä yhtään ottelua.<br/>Merkitse ottelu tähdellä tai <span class="link" data-settings="1">aseta suosikkijoukkue asetuksissa</span>.<br/><span class="link" data-allfilter="1">Näytä kaikki ottelut</span></div>`;
   } else {
     for (const [label, list] of groups) {
       body += `<div class="group-label">${esc(label)}<span class="cnt">${list.length}</span></div>
@@ -675,6 +672,7 @@ function bindSettings(): void {
     favTeamsEl.onchange = () => {
       favTeams = favTeamsEl.value.split(",").map(s => s.trim()).filter(Boolean);
       saveFavTeams();
+      toast("Tallennettu");
     };
   }
 
@@ -723,6 +721,11 @@ function closeSettings(): void {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 function init(): void {
+  // iOS Safari ignores user-scalable=no — block pinch zoom via touch events
+  document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
+  document.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
+  document.addEventListener("touchmove", (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+
   render();
   refreshTodayMatches();
   window.setInterval(() => { if (view === "list") refreshTodayMatches(); }, 30000);
