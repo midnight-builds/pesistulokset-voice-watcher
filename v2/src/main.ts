@@ -361,10 +361,7 @@ function deferredRender(): void {
 // ── List screen ───────────────────────────────────────────────────────────────
 
 function formatStartTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  const h = String(d.getUTCHours()).padStart(2, "0");
-  const m = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${h}:${m}`;
+  return new Date(dateStr).toLocaleTimeString("fi-FI", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Helsinki" });
 }
 
 function teamLine(name: string, shorthand: string): string {
