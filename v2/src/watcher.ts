@@ -261,6 +261,12 @@ export class BrowserWatcher {
         }
 
         saveState(matchId, state);
+
+        if (state.finished) {
+          this._running = false;
+          this.callbacks.onFinished();
+          return;
+        }
       } catch (err) {
         this.log(`Hakuvirhe: ${err instanceof Error ? err.message : err}`);
       }
