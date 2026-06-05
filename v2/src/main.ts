@@ -721,6 +721,11 @@ function closeSettings(): void {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 function init(): void {
+  // iOS Safari ignores user-scalable=no — block pinch zoom via touch events
+  document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
+  document.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
+  document.addEventListener("touchmove", (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+
   render();
   refreshTodayMatches();
   window.setInterval(() => { if (view === "list") refreshTodayMatches(); }, 30000);
