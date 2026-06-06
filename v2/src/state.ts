@@ -1,4 +1,4 @@
-const LS_PREFIX = "pesistulokset-v2-state-";
+const LS_PREFIX = "pesisselostaja-v2-state-";
 
 export interface PeriodScore {
   home: number;
