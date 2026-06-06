@@ -90,6 +90,7 @@ export class BrowserWatcher {
   private _currentSource: AudioBufferSourceNode | null = null;
   private _audioCtx: AudioContext | null = null;
   private _drainToken = 0;                 // generation counter; bump to abort in-flight work
+  private _lastSummaryCount = 0;           // announcementCount at the last periodic summary
 
   constructor(
     private config: WatcherConfig,
@@ -231,6 +232,10 @@ export class BrowserWatcher {
     const startupMsg = formatStartupSpeech(meta, this.buildContext(state));
     this.say(startupMsg, state);
     this.emitFeed("info", startupMsg);
+    // The startup message already gives the full situation — don't let the
+    // periodic summary fire immediately on top of it.
+    state.lastSummaryTime = Date.now();
+    this._lastSummaryCount = state.announcementCount;
 
     this.log("Seuranta käynnissä…");
 
@@ -247,8 +252,9 @@ export class BrowserWatcher {
           newBatTeam !== state.currentBatTeamId &&
           data.events.length === 0
         ) {
-          const newBatTurn = (state.currentBatTurn + 1) % 2;
+          // Trust the API for the new bat turn / period instead of guessing.
           const periodAdvanced = (data.period ?? 0) > state.currentPeriod;
+          const newBatTurn = data.bat_turn ?? (state.currentBatTurn + 1) % 2;
           const newInning = periodAdvanced ? 0
             : state.currentBatTurn === 1 ? state.currentInning + 1 : state.currentInning;
           const cur = getPeriodScore(state, state.currentPeriod);
@@ -260,6 +266,7 @@ export class BrowserWatcher {
           state.currentBatTeamId = newBatTeam;
           state.currentInning = newInning;
           state.currentBatTurn = newBatTurn;
+          if (periodAdvanced) state.currentPeriod = data.period!;
           state.currentOuts = 0;
         }
 
@@ -271,23 +278,24 @@ export class BrowserWatcher {
           state.currentOuts = recomputeCurrentOuts(data.events);
         }
 
-        // Apply period from API before emitting (period is never reset, only advances)
+        // Reconcile with the API's authoritative fields BEFORE emitting state.
+        // After a turn-ending out (e.g. the 3rd palo in a 3-out turn) the API
+        // reports the new batting team / period before any explicit bat-change
+        // event arrives. Doing this here means the scoreboard shows the team now
+        // batting, and the periodic summary below never names the team whose turn
+        // just ended. (Period only advances, never resets.)
         if ((data.period ?? 0) > 0) state.currentPeriod = data.period!;
-
-        // Emit NOW so the UI snapshot shows the outs count that TTS is announcing.
-        // The batting-team correction below may reset currentOuts to 0, but the
-        // snapshot is already captured here and stays until the next emitState.
-        this.emitState(state, meta);
-
-        // If the API's current batting team differs from what events set, sync it.
-        // This happens when the 3rd out ends a turn without an explicit bat-change
-        // event arriving yet — the API field is already ahead.
         if (data.team != null && data.team !== state.currentBatTeamId) {
           state.currentBatTeamId = data.team;
           state.currentOuts = 0;
         }
 
+        this.emitState(state, meta);
         saveState(matchId, state);
+
+        // Summary is generated here, after reconciliation, so its "Sisävuorossa"
+        // always reflects the team actually batting now.
+        this.maybeAnnounceSummary(state, meta);
 
         if (state.finished) {
           this._running = false;
@@ -391,18 +399,6 @@ export class BrowserWatcher {
 
         this.say(speech, state);
         this.emitFeed(this.classifyFeed(sub, speech), speech);
-
-        const now = Date.now();
-        const needsSummary =
-          state.announcementCount % SUMMARY_EVERY_N === 0 ||
-          now - state.lastSummaryTime > SUMMARY_INTERVAL_MS;
-        if (needsSummary && state.announcementCount > 0) {
-          state.lastSummaryTime = now;
-          const summaryCtx = { ...this.buildContext(state), currentOuts: recomputeCurrentOuts(events) };
-          const summary = formatSituationSummary(meta, summaryCtx);
-          this.emitFeed("summary", summary);
-          if (!this._muted) setTimeout(() => this.speakRaw(applyPronunciations(summary, this._pronunciations)), 800);
-        }
       }
 
       if (event.timestamp !== null && event.timestamp > state.lastTimestamp) {
@@ -465,6 +461,21 @@ export class BrowserWatcher {
       currentInning: state.currentInning,
       currentBatTurn: state.currentBatTurn,
     };
+  }
+
+  /** Speak/feed the periodic situation summary when one is due. */
+  private maybeAnnounceSummary(state: WatcherState, meta: MatchMetadata): void {
+    if (state.announcementCount === 0) return;
+    const now = Date.now();
+    const due =
+      state.announcementCount - this._lastSummaryCount >= SUMMARY_EVERY_N ||
+      now - state.lastSummaryTime > SUMMARY_INTERVAL_MS;
+    if (!due) return;
+    this._lastSummaryCount = state.announcementCount;
+    state.lastSummaryTime = now;
+    const summary = formatSituationSummary(meta, this.buildContext(state));
+    this.emitFeed("summary", summary);
+    if (!this._muted) this.speakRaw(applyPronunciations(summary, this._pronunciations));
   }
 
   private say(speech: string, state: WatcherState): void {

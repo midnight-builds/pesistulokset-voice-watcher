@@ -277,8 +277,10 @@ export function subEventToSpeech(
 
   if (rawText.includes("Palo")) {
     const teamName = getTeamName(meta, event.team);
+    // Full stops (not commas) between the parts so TTS reads it calmly with a
+    // pause between each, instead of rattling "Palo KPL kolmas palo" off as one.
     if (ctx) {
-      return `Palo! ${teamName}, ${ordinalPalo(ctx.currentOuts)}.`;
+      return `Palo! ${teamName}. ${capitalize(ordinalPalo(ctx.currentOuts))}.`;
     }
     return `Palo! ${teamName}.`;
   }
